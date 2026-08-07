@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { dbConnect } from "@/lib/mongodb";
 import Blog from "@/models/Blog";
 import { blogSchema } from "@/lib/validation";
-import { badRequest, requireAdmin } from "@/lib/api";
+import { badRequest, isDuplicateKeyError, requireAdmin } from "@/lib/api";
 
 /** Admin: list all blogs (published + drafts) for the dashboard. */
 export async function GET() {
@@ -39,11 +39,7 @@ export async function POST(req: Request) {
     const created = await Blog.create(parsed.data);
     return NextResponse.json({ ok: true, id: String(created._id) }, { status: 201 });
   } catch (e) {
-    if (isDuplicateKey(e)) return badRequest("slug นี้ถูกใช้แล้ว");
+    if (isDuplicateKeyError(e)) return badRequest("slug นี้ถูกใช้แล้ว");
     throw e;
   }
-}
-
-export function isDuplicateKey(e: unknown): boolean {
-  return Boolean(e && typeof e === "object" && (e as { code?: number }).code === 11000);
 }

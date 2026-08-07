@@ -2,6 +2,7 @@
 
 import { Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { apiRequest, getErrorMessage } from "@/lib/client-api";
 
 export default function LoginPage() {
   return (
@@ -23,19 +24,24 @@ function LoginForm() {
     e.preventDefault();
     setError(null);
     setLoading(true);
-    const res = await fetch("/api/auth/login", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ username, password }),
-    });
-    setLoading(false);
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) {
-      setError(data.error ?? "เข้าสู่ระบบไม่สำเร็จ");
-      return;
+    try {
+      await apiRequest("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, password }),
+      });
+      const destination = params.get("from");
+      const safeDestination =
+        destination?.startsWith("/admin/") && !destination.startsWith("//")
+          ? destination
+          : "/admin/blogs";
+      router.push(safeDestination);
+      router.refresh();
+    } catch (loginError) {
+      setError(getErrorMessage(loginError, "เข้าสู่ระบบไม่สำเร็จ"));
+    } finally {
+      setLoading(false);
     }
-    router.push(params.get("from") || "/admin/blogs");
-    router.refresh();
   }
 
   return (

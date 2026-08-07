@@ -3,6 +3,7 @@ import mongoose from "mongoose";
 import { dbConnect } from "@/lib/mongodb";
 import Comment from "@/models/Comment";
 import Blog from "@/models/Blog";
+import { COMMENT_STATUS } from "@/models/Comment";
 import { commentSchema } from "@/lib/validation";
 import { badRequest, requireAdmin } from "@/lib/api";
 
@@ -21,7 +22,9 @@ export async function POST(req: Request) {
   }
 
   await dbConnect();
-  const blog = await Blog.findById(blogId).select("_id").lean();
+  const blog = await Blog.findOne({ _id: blogId, published: true })
+    .select("_id")
+    .lean();
   if (!blog) return badRequest("ไม่พบ Blog");
 
   await Comment.create({
@@ -44,9 +47,13 @@ export async function GET(req: Request) {
 
   const status = new URL(req.url).searchParams.get("status"); // pending|approved|rejected
 
+  if (status && !COMMENT_STATUS.some((value) => value === status)) {
+    return badRequest("status ต้องเป็น pending | approved | rejected");
+  }
+
   await dbConnect();
   const filter: Record<string, unknown> = {};
-  if (status && ["pending", "approved", "rejected"].includes(status)) {
+  if (status) {
     filter.status = status;
   }
 

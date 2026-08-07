@@ -4,8 +4,12 @@ import { dbConnect } from "@/lib/mongodb";
 import Blog from "@/models/Blog";
 import Comment from "@/models/Comment";
 import { blogSchema } from "@/lib/validation";
-import { badRequest, notFound, requireAdmin } from "@/lib/api";
-import { isDuplicateKey } from "../route";
+import {
+  badRequest,
+  isDuplicateKeyError,
+  notFound,
+  requireAdmin,
+} from "@/lib/api";
 
 /** Admin: read a single blog (for the edit form). */
 export async function GET(
@@ -60,7 +64,7 @@ export async function PUT(
     if (!updated) return notFound("ไม่พบ Blog");
     return NextResponse.json({ ok: true });
   } catch (e) {
-    if (isDuplicateKey(e)) return badRequest("slug นี้ถูกใช้แล้ว");
+    if (isDuplicateKeyError(e)) return badRequest("slug นี้ถูกใช้แล้ว");
     throw e;
   }
 }

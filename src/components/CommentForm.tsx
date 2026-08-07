@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { THAI_COMMENT_REGEX } from "@/lib/validation";
+import { apiRequest, getErrorMessage } from "@/lib/client-api";
 
 export default function CommentForm({ blogId }: { blogId: string }) {
   const [authorName, setAuthorName] = useState("");
@@ -23,21 +24,20 @@ export default function CommentForm({ blogId }: { blogId: string }) {
       return setError("ความคิดเห็นต้องเป็นภาษาไทยและ/หรือตัวเลขเท่านั้น");
 
     setSubmitting(true);
-    const res = await fetch("/api/comments", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ blogId, authorName, message }),
-    });
-    setSubmitting(false);
-
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) {
-      setError(data.error ?? "ส่งไม่สำเร็จ");
-      return;
+    try {
+      await apiRequest("/api/comments", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ blogId, authorName, message }),
+      });
+      setDone(true);
+      setAuthorName("");
+      setMessage("");
+    } catch (submitError) {
+      setError(getErrorMessage(submitError, "ส่งไม่สำเร็จ"));
+    } finally {
+      setSubmitting(false);
     }
-    setDone(true);
-    setAuthorName("");
-    setMessage("");
   }
 
   if (done) {
@@ -63,6 +63,8 @@ export default function CommentForm({ blogId }: { blogId: string }) {
           onChange={(e) => setAuthorName(e.target.value)}
           className="w-full rounded-md border border-gray-300 px-3 py-2 outline-none focus:border-gray-900"
           placeholder="ชื่อของคุณ"
+          required
+          maxLength={100}
         />
       </div>
       <div>
@@ -75,6 +77,8 @@ export default function CommentForm({ blogId }: { blogId: string }) {
             messageInvalid ? "border-red-400" : "border-gray-300"
           }`}
           placeholder="ความคิดเห็น"
+          required
+          maxLength={1000}
         />
         {messageInvalid && (
           <p className="mt-1 text-xs text-red-600">

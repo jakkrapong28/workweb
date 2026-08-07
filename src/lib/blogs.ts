@@ -4,6 +4,10 @@ import Comment from "@/models/Comment";
 
 export const PAGE_SIZE = 10;
 
+export function normalizePage(value: number): number {
+  return Number.isFinite(value) ? Math.max(1, Math.floor(value)) : 1;
+}
+
 export interface BlogListItem {
   id: string;
   title: string;
@@ -33,20 +37,20 @@ export async function getPublishedBlogs(
   await dbConnect();
 
   const filter: Record<string, unknown> = { published: true };
-  if (search.trim()) {
+  const safeSearch = search.trim().slice(0, 100);
+  if (safeSearch) {
     // Case-insensitive substring match on title (works for Thai too).
-    filter.title = { $regex: escapeRegex(search.trim()), $options: "i" };
+    filter.title = { $regex: escapeRegex(safeSearch), $options: "i" };
   }
 
-  const safePage = Math.max(1, page);
-  const [docs, total] = await Promise.all([
-    Blog.find(filter)
-      .sort({ createdAt: -1 })
-      .skip((safePage - 1) * PAGE_SIZE)
-      .limit(PAGE_SIZE)
-      .lean(),
-    Blog.countDocuments(filter),
-  ]);
+  const total = await Blog.countDocuments(filter);
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const safePage = Math.min(normalizePage(page), totalPages);
+  const docs = await Blog.find(filter)
+    .sort({ createdAt: -1 })
+    .skip((safePage - 1) * PAGE_SIZE)
+    .limit(PAGE_SIZE)
+    .lean();
 
   return {
     items: docs.map((d) => ({
@@ -59,7 +63,7 @@ export async function getPublishedBlogs(
     })),
     total,
     page: safePage,
-    totalPages: Math.max(1, Math.ceil(total / PAGE_SIZE)),
+    totalPages,
   };
 }
 

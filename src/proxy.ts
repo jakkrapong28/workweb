@@ -1,26 +1,10 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { jwtVerify } from "jose";
-
-const secret = new TextEncoder().encode(
-  process.env.JWT_SECRET || "dev-super-secret-change-me-in-prod"
-);
-
-const SESSION_COOKIE = "admin_session";
-
-async function isValidSession(token: string | undefined): Promise<boolean> {
-  if (!token) return false;
-  try {
-    await jwtVerify(token, secret);
-    return true;
-  } catch {
-    return false;
-  }
-}
+import { SESSION_COOKIE_NAME, verifySessionToken } from "@/lib/session";
 
 export async function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
-  const token = req.cookies.get(SESSION_COOKIE)?.value;
-  const authed = await isValidSession(token);
+  const token = req.cookies.get(SESSION_COOKIE_NAME)?.value;
+  const authed = token ? Boolean(await verifySessionToken(token)) : false;
 
   // The login page itself is public; everything else under /admin needs a session.
   const isLoginPage = pathname === "/admin/login";

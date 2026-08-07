@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { slugify } from "@/lib/validation";
+import { apiRequest, getErrorMessage } from "@/lib/client-api";
 
 interface Img {
   url: string;
@@ -58,25 +59,30 @@ export default function BlogForm({ blogId, initial }: Props) {
 
     setUploading(true);
     const uploaded: Img[] = [];
-    for (const file of Array.from(files)) {
-      const fd = new FormData();
-      fd.append("file", file);
-      const res = await fetch("/api/upload", { method: "POST", body: fd });
-      const json = await res.json();
-      if (!res.ok) {
-        setError(json.error ?? "อัปโหลดรูปไม่สำเร็จ");
-        setUploading(false);
-        return;
+    try {
+      for (const file of Array.from(files)) {
+        const fd = new FormData();
+        fd.append("file", file);
+        const json = await apiRequest<{ url: string }>("/api/upload", {
+          method: "POST",
+          body: fd,
+        });
+        uploaded.push({ url: json.url, isCover: false });
       }
-      uploaded.push({ url: json.url, isCover: false });
+    } catch (uploadError) {
+      setError(getErrorMessage(uploadError, "อัปโหลดรูปไม่สำเร็จ"));
+      return;
+    } finally {
+      setUploading(false);
     }
-    setUploading(false);
 
     setData((d) => {
       const next = [...d.images, ...uploaded];
       // Make sure exactly one cover exists.
-      if (!next.some((i) => i.isCover) && next.length) next[0].isCover = true;
-      return { ...d, images: next };
+      const images = next.some((i) => i.isCover)
+        ? next
+        : next.map((image, index) => ({ ...image, isCover: index === 0 }));
+      return { ...d, images };
     });
   }
 
@@ -90,8 +96,10 @@ export default function BlogForm({ blogId, initial }: Props) {
   function removeImage(idx: number) {
     setData((d) => {
       const next = d.images.filter((_, i) => i !== idx);
-      if (next.length && !next.some((i) => i.isCover)) next[0].isCover = true;
-      return { ...d, images: next };
+      const images = next.some((i) => i.isCover)
+        ? next
+        : next.map((image, index) => ({ ...image, isCover: index === 0 }));
+      return { ...d, images };
     });
   }
 
@@ -100,24 +108,19 @@ export default function BlogForm({ blogId, initial }: Props) {
     setError(null);
     setSaving(true);
 
-    const res = await fetch(blogId ? `/api/blogs/${blogId}` : "/api/blogs", {
-      method: blogId ? "PUT" : "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(data),
-    });
-    setSaving(false);
-
-    const json = await res.json().catch(() => ({}));
-    if (!res.ok) {
-      setError(
-        json.error +
-          (json.details ? `: ${JSON.stringify(json.details)}` : "") ||
-          "บันทึกไม่สำเร็จ"
-      );
-      return;
+    try {
+      await apiRequest(blogId ? `/api/blogs/${blogId}` : "/api/blogs", {
+        method: blogId ? "PUT" : "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
+      router.push("/admin/blogs");
+      router.refresh();
+    } catch (saveError) {
+      setError(getErrorMessage(saveError, "บันทึกไม่สำเร็จ"));
+    } finally {
+      setSaving(false);
     }
-    router.push("/admin/blogs");
-    router.refresh();
   }
 
   return (
@@ -126,6 +129,8 @@ export default function BlogForm({ blogId, initial }: Props) {
         <input
           value={data.title}
           onChange={(e) => onTitle(e.target.value)}
+          required
+          maxLength={200}
           className="input"
         />
       </Field>
@@ -140,6 +145,8 @@ export default function BlogForm({ blogId, initial }: Props) {
               set("slug", e.target.value);
             }}
             className="input"
+            required
+            pattern="[a-z0-9]+(?:-[a-z0-9]+)*"
           />
         </div>
       </Field>
@@ -149,6 +156,8 @@ export default function BlogForm({ blogId, initial }: Props) {
           value={data.excerpt}
           onChange={(e) => set("excerpt", e.target.value)}
           rows={2}
+          required
+          maxLength={500}
           className="input"
         />
       </Field>
@@ -158,6 +167,8 @@ export default function BlogForm({ blogId, initial }: Props) {
           value={data.content}
           onChange={(e) => set("content", e.target.value)}
           rows={10}
+          required
+          maxLength={50000}
           className="input"
         />
       </Field>
@@ -166,7 +177,7 @@ export default function BlogForm({ blogId, initial }: Props) {
         <div className="flex flex-wrap gap-3">
           {data.images.map((img, i) => (
             <div
-              key={i}
+              key={img.url}
               className="relative h-24 w-32 overflow-hidden rounded-md border border-gray-200"
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}

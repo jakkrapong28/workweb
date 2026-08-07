@@ -16,7 +16,10 @@ async function seed() {
 
   // --- Admin ---
   const username = process.env.ADMIN_USERNAME || "admin";
-  const password = process.env.ADMIN_PASSWORD || "admin1234";
+  const password = process.env.ADMIN_PASSWORD;
+  if (!password || password.length < 12) {
+    throw new Error("ADMIN_PASSWORD must be configured with at least 12 characters");
+  }
   const passwordHash = await bcrypt.hash(password, 10);
 
   await Admin.findOneAndUpdate(
@@ -24,7 +27,7 @@ async function seed() {
     { username, passwordHash },
     { upsert: true, returnDocument: "after" }
   );
-  console.log(`✓ admin: ${username} / ${password}`);
+  console.log(`✓ admin: ${username}`);
 
   // --- Blogs (idempotent: clear then insert sample data) ---
   await Blog.deleteMany({});

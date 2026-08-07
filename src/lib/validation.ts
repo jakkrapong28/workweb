@@ -34,19 +34,32 @@ export const commentSchema = z.object({
 export type CommentInput = z.infer<typeof commentSchema>;
 
 const imageSchema = z.object({
-  url: z.string().min(1),
+  url: z
+    .string()
+    .trim()
+    .min(1)
+    .max(2048)
+    .refine(isSafeImageUrl, "URL รูปภาพไม่ถูกต้อง"),
   isCover: z.boolean().optional().default(false),
 });
 
 export const blogSchema = z.object({
-  title: z.string().trim().min(1, "กรุณากรอกชื่อ Blog"),
+  title: z.string().trim().min(1, "กรุณากรอกชื่อ Blog").max(200, "ชื่อยาวเกินไป"),
   slug: z
     .string()
     .trim()
     .min(1, "กรุณากรอก slug")
     .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, "slug ต้องเป็น a-z, 0-9 และ - เท่านั้น"),
-  excerpt: z.string().trim().min(1, "กรุณากรอกเนื้อหาอย่างย่อ"),
-  content: z.string().trim().min(1, "กรุณากรอกเนื้อหา"),
+  excerpt: z
+    .string()
+    .trim()
+    .min(1, "กรุณากรอกเนื้อหาอย่างย่อ")
+    .max(500, "เนื้อหาอย่างย่อยาวเกินไป"),
+  content: z
+    .string()
+    .trim()
+    .min(1, "กรุณากรอกเนื้อหา")
+    .max(50_000, "เนื้อหายาวเกินไป"),
   published: z.boolean().optional().default(false),
   images: z
     .array(imageSchema)
@@ -83,4 +96,14 @@ export function slugify(input: string): string {
     .replace(/^-|-$/g, "");
 
   return base || `post-${Date.now().toString(36)}`;
+}
+
+function isSafeImageUrl(value: string): boolean {
+  if (value.startsWith("/") && !value.startsWith("//")) return true;
+  try {
+    const url = new URL(value);
+    return url.protocol === "https:" || url.protocol === "http:";
+  } catch {
+    return false;
+  }
 }

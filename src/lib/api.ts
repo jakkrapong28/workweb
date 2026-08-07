@@ -20,3 +20,9 @@ export function badRequest(message: string, details?: unknown) {
 export function notFound(message = "Not found") {
   return NextResponse.json({ error: message }, { status: 404 });
 }
+
+export function isDuplicateKeyError(error: unknown): boolean {
+  return Boolean(
+    error && typeof error === "object" && (error as { code?: number }).code === 11000
+  );
+}

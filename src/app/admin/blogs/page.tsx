@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { formatThaiDate } from "@/lib/format";
 import EmptyState from "@/components/EmptyState";
+import { apiRequest, getErrorMessage } from "@/lib/client-api";
 
 interface BlogRow {
   id: string;
@@ -18,17 +19,21 @@ interface BlogRow {
 export default function AdminBlogsPage() {
   const [rows, setRows] = useState<BlogRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   // Bump to force a refetch after a mutation.
   const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
     let active = true;
     (async () => {
-      const res = await fetch("/api/blogs");
-      const data = await res.json();
-      if (active) {
-        setRows(data.items ?? []);
-        setLoading(false);
+      setError(null);
+      try {
+        const data = await apiRequest<{ items: BlogRow[] }>("/api/blogs");
+        if (active) setRows(data.items);
+      } catch (loadError) {
+        if (active) setError(getErrorMessage(loadError, "โหลดบทความไม่สำเร็จ"));
+      } finally {
+        if (active) setLoading(false);
       }
     })();
     return () => {
@@ -39,18 +44,28 @@ export default function AdminBlogsPage() {
   const reload = () => setRefreshKey((k) => k + 1);
 
   async function togglePublish(b: BlogRow) {
-    await fetch(`/api/blogs/${b.id}/publish`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ published: !b.published }),
-    });
-    reload();
+    setError(null);
+    try {
+      await apiRequest(`/api/blogs/${b.id}/publish`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ published: !b.published }),
+      });
+      reload();
+    } catch (updateError) {
+      setError(getErrorMessage(updateError, "เปลี่ยนสถานะไม่สำเร็จ"));
+    }
   }
 
   async function remove(b: BlogRow) {
     if (!confirm(`ลบบทความ “${b.title}” ?`)) return;
-    await fetch(`/api/blogs/${b.id}`, { method: "DELETE" });
-    reload();
+    setError(null);
+    try {
+      await apiRequest(`/api/blogs/${b.id}`, { method: "DELETE" });
+      reload();
+    } catch (deleteError) {
+      setError(getErrorMessage(deleteError, "ลบบทความไม่สำเร็จ"));
+    }
   }
 
   return (
@@ -64,6 +79,12 @@ export default function AdminBlogsPage() {
           + สร้างบทความ
         </Link>
       </div>
+
+      {error && (
+        <p role="alert" className="mb-4 rounded-md bg-red-50 p-3 text-sm text-red-700">
+          {error}
+        </p>
+      )}
 
       {loading ? (
         <div className="overflow-hidden rounded-lg border border-gray-200 bg-white">

@@ -1,11 +1,11 @@
 @import "tailwindcss";
 
 @theme inline {
-  --font-sans: var(--font-noto-thai);
+  --font-sans: "Noto Sans Thai", "Leelawadee UI", Tahoma, system-ui, sans-serif;
 }
 
 body {
-  font-family: var(--font-noto-thai), system-ui, sans-serif;
+  font-family: var(--font-sans);
 }
 
 /* Keyboard-only focus ring for accessibility (ไม่โผล่ตอนคลิกเมาส์) */

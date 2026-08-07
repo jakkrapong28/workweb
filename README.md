@@ -1,81 +1,139 @@
-# ระบบจัดการบล็อก (Simple Blog System - Next.js & MongoDB)
+# Workweb Blog
 
-ระบบจัดการบล็อกและบทความ พัฒนาด้วย Next.js (App Router) เชื่อมต่อฐานข้อมูล MongoDB พร้อมระบบควบคุมสำหรับผู้ดูแลระบบ (Admin Panel) สำหรับจัดการบทความและคัดกรองคอมเมนต์
+A full-stack Thai blog platform built with Next.js App Router, MongoDB, and TypeScript. The project demonstrates authenticated content management, moderated comments, validated image uploads, server-side pagination, and production-oriented security controls.
 
-## ฟีเจอร์หลัก (Features)
-- **หน้าแรก (Home)**: แสดงรายการบทความทั้งหมด พร้อมระบบค้นหา (Search) และแบ่งหน้า (Pagination)
-- **หน้ารายละเอียดบทความ (Blog Detail)**: แสดงเนื้อหาตัวเต็ม, แกลเลอรีรูปภาพ, ยอดผู้เข้าชม (View Count) และส่วนแสดงความคิดเห็น
-- **ระบบคอมเมนต์ (Comments)**: 
-  - บังคับกรอกชื่อผู้ส่งและข้อความเฉพาะภาษาไทย/ตัวเลขเท่านั้น
-  - ต้องได้รับการอนุมัติจาก Admin ก่อนจึงจะแสดงบนหน้าเว็บ (มีสถานะ Pending / Approved / Rejected)
-- **ระบบจัดการหลังบ้าน (Admin Panel)**:
-  - ระบบล็อกอินปลอดภัยด้วย JWT (httpOnly cookie) และ Middleware ป้องกันหน้าต่าง ๆ
-  - จัดการบทความ (เขียนใหม่, แก้ไข, ลบ, เปลี่ยนสถานะร่าง/เผยแพร่, แก้ไข Slug และเพิ่ม/ลบรูปภาพ)
-  - จัดการอนุมัติหรือปฏิเสธความคิดเห็น
+ระบบจัดการบทความภาษาไทยแบบ Full Stack มีหน้าเว็บไซต์สาธารณะและ Admin Panel สำหรับดูแลบทความ รูปภาพ และความคิดเห็น
 
-## เทคโนโลยีที่ใช้งาน (Tech Stack)
-- **Framework**: Next.js 16 (App Router)
-- **Database**: MongoDB + Mongoose
-- **Validation**: Zod (ตรวจสอบข้อมูลฝั่ง API) และ Mongoose Schema
-- **Authentication**: JWT (ผ่านไลบรารี jose) และ bcryptjs สำหรับเข้ารหัสรหัสผ่าน
-- **Styling**: Tailwind CSS v4
-- **Storage**: รองรับการบันทึกไฟล์ในเครื่อง (Local) และ Vercel Blob (สำหรับ Production บน Vercel)
+## Highlights
 
----
+- Published/draft workflow with searchable, paginated public content
+- JWT admin sessions stored in secure `httpOnly` cookies
+- Comment moderation with pending, approved, and rejected states
+- Shared Zod/Mongoose validation and Thai-language comment rules
+- Image uploads to Vercel Blob in production or local storage during development
+- File signature verification, MIME allowlist, 5 MB limit, and randomized filenames
+- Automated lint, unit tests, production build, and GitHub Actions CI
 
-## ขั้นตอนการติดตั้งและใช้งาน (Installation)
+## Architecture
 
-โปรเจกต์นี้ต้องการ **Node.js 18 ขึ้นไป** และ **MongoDB**
+```mermaid
+flowchart LR
+  Visitor[Public visitor] --> Pages[Next.js App Router]
+  Admin[Admin user] --> Panel[Protected Admin Panel]
+  Panel --> API[Route Handlers]
+  Pages --> Data[Server data layer]
+  API --> Validation[Zod validation]
+  Validation --> Mongo[(MongoDB)]
+  Data --> Mongo
+  API --> Storage[Vercel Blob / local uploads]
+```
+
+Images are embedded in a blog document because they are bounded and read with the article. Comments use a separate collection because they can grow independently and need cross-blog moderation queries.
+
+## Tech stack
+
+| Area | Technology |
+| --- | --- |
+| Framework | Next.js 16, React 19, App Router |
+| Language | TypeScript (strict mode) |
+| Database | MongoDB, Mongoose |
+| Authentication | `jose` JWT, `bcryptjs`, secure cookies |
+| Validation | Zod and Mongoose schemas |
+| Styling | Tailwind CSS 4 |
+| Storage | Vercel Blob with local development fallback |
+| Quality | ESLint, Node test runner via `tsx`, GitHub Actions |
+
+## Getting started
+
+Requirements: Node.js 22 (recommended) and MongoDB.
 
 ```bash
-# 1. ติดตั้ง Dependencies
-npm install
-
-# 2. คัดลอกและตั้งค่า Environment Variables
+git clone <your-repository-url>
+cd workweb
+npm ci
 cp .env.example .env.local
+```
 
-# 3. สร้างข้อมูลจำลอง (Admin และบทความตัวอย่าง)
+Update `.env.local` with your own values. Generate a JWT secret with:
+
+```bash
+openssl rand -base64 32
+```
+
+Seed a development admin and sample articles, then start the app:
+
+```bash
 npm run seed
-
-# 4. เริ่มรันโปรเจกต์ในโหมด Development
 npm run dev
 ```
-เปิดใช้งานที่: [http://localhost:3000](http://localhost:3000)
-หน้าจัดการระบบ (Admin): [http://localhost:3000/admin](http://localhost:3000/admin) (บัญชีเริ่มต้น: `admin` / `admin1234`)
 
----
+- Public site: [http://localhost:3000](http://localhost:3000)
+- Admin panel: [http://localhost:3000/admin](http://localhost:3000/admin)
 
-## โครงสร้างโฟลเดอร์ (Project Structure)
+The seed command requires `ADMIN_PASSWORD` to contain at least 12 characters. Credentials are never printed or committed.
+
+## Environment variables
+
+| Variable | Required | Purpose |
+| --- | --- | --- |
+| `MONGODB_URI` | Yes | MongoDB connection string |
+| `JWT_SECRET` | Yes | Session signing secret, minimum 32 characters |
+| `ADMIN_USERNAME` | Seed only | Initial admin username |
+| `ADMIN_PASSWORD` | Seed only | Initial admin password, minimum 12 characters |
+| `BLOB_READ_WRITE_TOKEN` | Production uploads | Vercel Blob access token |
+
+See [`.env.example`](.env.example) for a safe template.
+
+## Commands
+
+```bash
+npm run dev      # development server
+npm run lint     # static analysis
+npm test         # unit tests
+npm run build    # optimized production build
+npm run check    # lint + tests + build
+npm run seed     # reset and create local sample data
 ```
+
+## Main API routes
+
+| Method and route | Access | Purpose |
+| --- | --- | --- |
+| `POST /api/auth/login` | Public | Authenticate an admin |
+| `POST /api/auth/logout` | Admin | Clear the session |
+| `GET/POST /api/blogs` | Admin | List or create articles |
+| `GET/PUT/DELETE /api/blogs/:id` | Admin | Read, update, or delete an article |
+| `PATCH /api/blogs/:id/publish` | Admin | Publish or unpublish an article |
+| `POST /api/comments` | Public | Submit a pending comment |
+| `GET /api/comments` | Admin | List comments by status |
+| `PATCH /api/comments/:id` | Admin | Moderate a comment |
+| `POST /api/upload` | Admin | Validate and upload an image |
+
+## Project structure
+
+```text
 src/
-├── app/
-│   ├── page.tsx                  # หน้ารวมบทความ (ค้นหา + แบ่งหน้า)
-│   ├── blog/[slug]/page.tsx      # หน้ารายละเอียดบทความ + คอมเมนต์
-│   ├── admin/                    # ระบบหลังบ้าน (Login, จัดการบทความ, ตรวจสอบคอมเมนต์)
-│   └── api/                      # API Endpoints
-├── components/                   # UI Components ที่ใช้ซ้ำ
-├── lib/                          # ฟังก์ชันจัดการ Database, Auth, และ Utils ต่าง ๆ
-├── models/                       # Mongoose Schemas (Admin, Blog, Comment)
-└── proxy.ts                      # Middleware ป้องกันเส้นทาง /admin
+├── app/             # Pages, layouts, and API route handlers
+├── components/      # Reusable client and server UI
+├── lib/             # Auth, database, validation, and shared utilities
+├── models/          # Mongoose schemas and inferred types
+└── proxy.ts         # Admin route protection
+tests/               # Focused unit tests for security and validation rules
+scripts/seed.ts      # Idempotent local demo-data setup
 ```
 
----
+## Security notes
 
-## สถาปัตยกรรมและการเก็บข้อมูล
+- Admin APIs verify the signed session independently of page-level route protection.
+- JWT issuer, audience, algorithm, expiry, and required claims are validated.
+- There is no fallback production secret; misconfiguration fails closed.
+- Login work is intentionally similar for existing and unknown usernames to reduce timing leakage.
+- Redirects after login are restricted to internal admin paths.
+- User input is validated on the server even when client-side validation is present.
+- Uploaded file contents are checked against their declared image type.
 
-### 1. โครงสร้าง Database
-- **รูปภาพ (Images) -> Embed ใน Blog**: ข้อมูลรูปภาพจะบันทึกรวมอยู่ใน Document ของบทความนั้น ๆ (สูงสุดไม่เกิน 7 รูป: รูปหน้าปก 1 รูป + รูปเพิ่มเติม 6 รูป) เนื่องจากข้อมูลรูปภาพมักถูกดึงมาแสดงผลพร้อมบทความเสมอ ช่วยลดความซับซ้อนในการคิวรี
-- **คอมเมนต์ (Comments) -> แยก Collection**: เนื่องจากจำนวนความคิดเห็นมีโอกาสเพิ่มขึ้นได้เรื่อย ๆ อย่างไม่จำกัด จึงแยกเก็บเป็นอีกหนึ่งคอลเลกชันเพื่อประสิทธิภาพที่ดีกว่า และช่วยให้ผู้ดูแลระบบสามารถค้นหาเพื่ออนุมัติหรือปฏิเสธความคิดเห็นตามสถานะได้ง่ายขึ้น
+For an internet-facing deployment, add infrastructure-level rate limiting to login, comments, and uploads (for example through a reverse proxy or platform firewall).
 
-### 2. การตรวจสอบข้อมูลความคิดเห็น (Comment Validation)
-ระบบจะทำการคัดกรองข้อความอย่างเข้มงวดทั้งในส่วนหน้าบ้าน (Client) และหลังบ้าน (Server API) โดยใช้เงื่อนไขตรวจสอบรูปประโยค (Regular Expression):
-```javascript
-/^[฀-๿0-9\s]+$/
-```
-* **รองรับ**: ตัวอักษรภาษาไทยทั้งหมด (รวมถึงสระ วรรณยุกต์ และเลขไทย) เลขอารบิก และช่องว่าง
-* **ไม่อนุญาต**: ตัวอักษรภาษาอังกฤษ, อีโมจิ และสัญลักษณ์พิเศษต่าง ๆ
+## Deployment
 
-### 3. ระบบอัปโหลดรูปภาพ (Image Upload)
-ตัว API รองรับการอัปโหลดไฟล์ภาพหลากหลายตระกูล เช่น JPG, PNG, WEBP, GIF (จำกัดขนาดไม่เกิน 5MB)
-* **รันบนเครื่องตนเอง (Local)**: บันทึกไฟล์ลงที่โฟลเดอร์ `public/uploads/` 
-* **รันบนระบบจริง (Vercel)**: หากมีการผูกตัวแปร `BLOB_READ_WRITE_TOKEN` ระบบจะสลับไปบันทึกรูปภาพลงบน **Vercel Blob** (Cloud Object Storage) ให้โดยอัตโนมัติ เพื่อป้องกันปัญหาพื้นที่เก็บไฟล์สูญหายเมื่อระบบรีสตาร์ทตัวคลาวด์
+The application is designed for Vercel with MongoDB Atlas and Vercel Blob. Configure the environment variables in the hosting platform before deployment. Local filesystem uploads are intended only for development because serverless filesystems are ephemeral.

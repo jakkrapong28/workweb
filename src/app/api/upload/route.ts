@@ -3,10 +3,13 @@ import { writeFile, mkdir } from "fs/promises";
 import path from "path";
 import { randomUUID } from "crypto";
 import { badRequest, requireAdmin } from "@/lib/api";
+import {
+  hasValidImageSignature,
+  imageExtension,
+  isSupportedImageType,
+  MAX_IMAGE_BYTES,
+} from "@/lib/images";
 import { put } from "@vercel/blob";
-
-const ALLOWED = ["image/jpeg", "image/png", "image/webp", "image/gif"];
-const MAX_BYTES = 5 * 1024 * 1024; // 5MB
 
 /** Admin: upload one image.
  * 1. Vercel Blob  — if BLOB_READ_WRITE_TOKEN is set
@@ -20,11 +23,18 @@ export async function POST(req: Request) {
   const file = form.get("file");
 
   if (!(file instanceof File)) return badRequest("ไม่พบไฟล์");
-  if (!ALLOWED.includes(file.type)) return badRequest("รองรับเฉพาะรูปภาพ");
-  if (file.size > MAX_BYTES) return badRequest("ไฟล์ใหญ่เกิน 5MB");
+  if (!isSupportedImageType(file.type)) {
+    return badRequest("รองรับเฉพาะ JPG, PNG, WEBP และ GIF");
+  }
+  if (file.size === 0) return badRequest("ไฟล์ว่างเปล่า");
+  if (file.size > MAX_IMAGE_BYTES) return badRequest("ไฟล์ใหญ่เกิน 5MB");
 
-  const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
-  const filename = `${randomUUID()}.${ext}`;
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  if (!hasValidImageSignature(bytes, file.type)) {
+    return badRequest("เนื้อหาไฟล์ไม่ตรงกับชนิดรูปภาพ");
+  }
+
+  const filename = `${randomUUID()}.${imageExtension(file.type)}`;
 
   // Check all possible Vercel Blob token env var names
   const blobToken =
@@ -48,7 +58,7 @@ export async function POST(req: Request) {
     } catch (err) {
       console.error("Vercel Blob upload failed:", err);
       return NextResponse.json(
-        { error: "Blob upload failed: " + String(err) },
+        { error: "ไม่สามารถอัปโหลดรูปภาพได้ กรุณาลองอีกครั้ง" },
         { status: 500 }
       );
     }
@@ -58,7 +68,6 @@ export async function POST(req: Request) {
   try {
     const uploadDir = path.join(process.cwd(), "public", "uploads");
     await mkdir(uploadDir, { recursive: true });
-    const bytes = Buffer.from(await file.arrayBuffer());
     await writeFile(path.join(uploadDir, filename), bytes);
     return NextResponse.json({ ok: true, url: `/uploads/${filename}` });
   } catch {

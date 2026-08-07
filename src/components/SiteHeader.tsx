@@ -5,13 +5,13 @@ export default function SiteHeader() {
     <header className="border-b border-gray-200 bg-white">
       <div className="mx-auto flex max-w-4xl items-center justify-between px-4 py-4">
         <Link href="/" className="flex items-center gap-2 text-xl font-bold">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src="/manu.jpeg"
-            alt="Manchester United Logo"
-            className="h-8 w-8 object-contain"
-          />
-          <span>Manchester United</span>
+          <span
+            aria-hidden="true"
+            className="flex h-8 w-8 items-center justify-center rounded-lg bg-gray-900 text-sm text-white"
+          >
+            W
+          </span>
+          <span>Workweb Blog</span>
         </Link>
         <Link
           href="/admin/blogs"

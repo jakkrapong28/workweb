@@ -3,7 +3,7 @@ import SiteHeader from "@/components/SiteHeader";
 import SearchBar from "@/components/SearchBar";
 import Pagination from "@/components/Pagination";
 import EmptyState from "@/components/EmptyState";
-import { getPublishedBlogs } from "@/lib/blogs";
+import { getPublishedBlogs, normalizePage } from "@/lib/blogs";
 import { formatThaiDate } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
@@ -15,7 +15,7 @@ export default async function HomePage({
 }) {
   const sp = await searchParams;
   const search = sp.q ?? "";
-  const page = Number(sp.page) || 1;
+  const page = normalizePage(Number(sp.page));
 
   const { items, total, page: current, totalPages } = await getPublishedBlogs(
     search,

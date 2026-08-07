@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import BlogForm, { type BlogFormData } from "@/components/BlogForm";
+import { apiRequest, getErrorMessage } from "@/lib/client-api";
 
 export default function EditBlogPage() {
   const { id } = useParams<{ id: string }>();
@@ -10,13 +11,10 @@ export default function EditBlogPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    fetch(`/api/blogs/${id}`)
-      .then((r) => r.json())
+    let active = true;
+    apiRequest<BlogFormData>(`/api/blogs/${id}`)
       .then((b) => {
-        if (b.error) {
-          setError(b.error);
-          return;
-        }
+        if (!active) return;
         setData({
           title: b.title,
           slug: b.slug,
@@ -25,7 +23,13 @@ export default function EditBlogPage() {
           published: b.published,
           images: b.images,
         });
+      })
+      .catch((loadError) => {
+        if (active) setError(getErrorMessage(loadError, "โหลดบทความไม่สำเร็จ"));
       });
+    return () => {
+      active = false;
+    };
   }, [id]);
 
   if (error) return <p className="text-red-600">{error}</p>;

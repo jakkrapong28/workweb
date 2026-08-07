@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { formatThaiDate } from "@/lib/format";
 import EmptyState from "@/components/EmptyState";
+import { apiRequest, getErrorMessage } from "@/lib/client-api";
 
 type Status = "pending" | "approved" | "rejected";
 
@@ -25,6 +26,7 @@ export default function AdminCommentsPage() {
   const [tab, setTab] = useState<Status>("pending");
   const [rows, setRows] = useState<CommentRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   // Bump to force a refetch after a moderation action.
   const [refreshKey, setRefreshKey] = useState(0);
 
@@ -32,11 +34,18 @@ export default function AdminCommentsPage() {
   useEffect(() => {
     let active = true;
     (async () => {
-      const res = await fetch(`/api/comments?status=${tab}`);
-      const data = await res.json();
-      if (active) {
-        setRows(data.items ?? []);
-        setLoading(false);
+      setError(null);
+      try {
+        const data = await apiRequest<{ items: CommentRow[] }>(
+          `/api/comments?status=${tab}`
+        );
+        if (active) setRows(data.items);
+      } catch (loadError) {
+        if (active) {
+          setError(getErrorMessage(loadError, "โหลดความคิดเห็นไม่สำเร็จ"));
+        }
+      } finally {
+        if (active) setLoading(false);
       }
     })();
     return () => {
@@ -51,12 +60,17 @@ export default function AdminCommentsPage() {
   }
 
   async function setStatus(id: string, status: Status) {
-    await fetch(`/api/comments/${id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status }),
-    });
-    setRefreshKey((k) => k + 1);
+    setError(null);
+    try {
+      await apiRequest(`/api/comments/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status }),
+      });
+      setRefreshKey((k) => k + 1);
+    } catch (updateError) {
+      setError(getErrorMessage(updateError, "เปลี่ยนสถานะไม่สำเร็จ"));
+    }
   }
 
   return (
@@ -78,6 +92,12 @@ export default function AdminCommentsPage() {
           </button>
         ))}
       </div>
+
+      {error && (
+        <p role="alert" className="mb-4 rounded-md bg-red-50 p-3 text-sm text-red-700">
+          {error}
+        </p>
+      )}
 
       {loading ? (
         <ul className="space-y-3">
